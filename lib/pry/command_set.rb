@@ -146,7 +146,18 @@ class Pry
       if command.options[:argument_required] && args.empty?
         puts "The command '#{command.name}' requires an argument."
       else
-        command.call(context, *args)
+        pipe_index = args.index '|'
+        if (pipe_index && context.command_processor.valid_command?(args[pipe_index+1])
+          context.output = StringIO.new
+          arguments = args[0..pipe_index-1] if pipe_index - 1 > 0
+          command.call context, *arguments
+          context.output.rewind
+          command.call context, context.output.read
+          context.output = STDOUT
+          run_command context, args[pipe_index+1], *args[pipe_index+1..-1] 
+        else
+          command.call(context, *args)
+        end
       end
     end
 
