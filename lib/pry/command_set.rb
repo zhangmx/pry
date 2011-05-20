@@ -147,14 +147,16 @@ class Pry
         puts "The command '#{command.name}' requires an argument."
       else
         pipe_index = args.index '|'
-        if (pipe_index && context.command_processor.valid_command?(args[pipe_index+1])
+        if pipe_index && context.command_processor.valid_command?(args[pipe_index+1])
           context.output = StringIO.new
           arguments = args[0..pipe_index-1] if pipe_index - 1 > 0
           command.call context, *arguments
           context.output.rewind
-          command.call context, context.output.read
+          data = Pry::Helpers::Text.strip_color(context.output.read)
           context.output = STDOUT
-          run_command context, args[pipe_index+1], *args[pipe_index+1..-1] 
+          run_command context, args[pipe_index+1], data
+        elsif context.command_processor.valid_command?(args.first)
+          run_command context, *args
         else
           command.call(context, *args)
         end
