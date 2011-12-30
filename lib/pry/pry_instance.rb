@@ -225,17 +225,6 @@ class Pry
   def re(target=TOPLEVEL_BINDING)
     target = Pry.binding_for(target)
 
-    compl = Pry::InputCompleter.build_completion_proc(target,
-                                                      instance_eval(&custom_completions))
-
-    if defined? Coolline and input.is_a? Coolline
-      input.completion_proc = proc do |cool|
-        compl.call cool.completed_word
-      end
-    elsif input.respond_to? :completion_proc=
-      input.completion_proc = compl
-    end
-
     # It's not actually redundant to inject them continually as we may have
     # moved into the scope of a new Binding (e.g the user typed `cd`)
     inject_special_locals(target)

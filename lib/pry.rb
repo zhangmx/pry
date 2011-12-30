@@ -166,6 +166,7 @@ require "coderay"
 require "optparse"
 require "slop"
 require "rbconfig"
+require "bond"
 
 if Pry::Helpers::BaseHelpers.jruby?
   begin
@@ -195,8 +196,6 @@ require "pry/history"
 require "pry/command"
 require "pry/command_set"
 require "pry/commands"
-require "pry/custom_completions"
-require "pry/completion"
 require "pry/plugins"
 require "pry/core_extensions"
 require "pry/pry_class"

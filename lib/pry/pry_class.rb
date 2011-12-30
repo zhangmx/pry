@@ -94,6 +94,10 @@ class Pry
     load_history if Pry.config.history.should_load
     load_traps if Pry.config.should_trap_interrupts
 
+    # don't start bond if the user already did so (which they may have
+    # in order to configure it)
+    Bond.start unless Bond.started?
+
     @initial_session = false
   end
 
@@ -295,7 +299,6 @@ class Pry
 
     @initial_session = true
 
-    self.custom_completions = DEFAULT_CUSTOM_COMPLETIONS
     self.cli = false
     self.current_line = 1
     self.line_buffer = [""]
