@@ -351,6 +351,8 @@ class Pry
       instance_exec(*correct_arg_arity(block.arity, args), &block)
     end
 
+    def complete(search); [] end
+
     def help; description; end
   end
 
@@ -367,6 +369,13 @@ class Pry
 
     attr_accessor :opts
     attr_accessor :args
+
+    def complete(search)
+      slop.map do |opt|
+        [opt.long_flag && "--#{opt.long_flag}",
+         opt.short_flag && "-#{opt.short_flag}"]
+      end.flatten(1).compact
+    end
 
     # Set up {opts} and {args}, and then call {process}
     #
