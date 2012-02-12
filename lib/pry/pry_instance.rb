@@ -318,6 +318,7 @@ class Pry
   def retrieve_line(eval_string, target)
     @indent.reset if eval_string.empty?
 
+    Pry.binding_for_bond = target
     current_prompt = select_prompt(eval_string, target)
     indentation = Pry.config.auto_indent ? @indent.indent_level : ''
 

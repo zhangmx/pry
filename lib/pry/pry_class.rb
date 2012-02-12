@@ -46,6 +46,10 @@ class Pry
     # @return [Fixnum] The number of active Pry sessions.
     attr_accessor :active_sessions
 
+    # @return [Binding] The binding currently readlining.
+    # TODO: this is not thread/fibre safe.
+    attr_accessor :binding_for_bond
+
     # plugin forwardables
     def_delegators :@plugin_manager, :plugins, :load_plugins, :locate_plugins
 
@@ -94,9 +98,7 @@ class Pry
     load_history if Pry.config.history.should_load
     load_traps if Pry.config.should_trap_interrupts
 
-    # don't start bond if the user already did so (which they may have
-    # in order to configure it)
-    Bond.start unless Bond.started?
+    Bond.start :gems => %w'pry', :binding => lambda{ Pry.binding_for_bond }
 
     @initial_session = false
   end
