@@ -46,9 +46,6 @@ class Pry
     # @return [Fixnum] The number of active Pry sessions.
     attr_accessor :active_sessions
 
-    # plugin forwardables
-    def_delegators :@plugin_manager, :plugins, :load_plugins, :locate_plugins
-
     delegate_accessors :@config, :input, :output, :commands, :prompt, :print, :exception_handler,
       :hooks, :color, :pager, :editor, :memory_size, :input_stack
   end
@@ -89,7 +86,6 @@ class Pry
     # note these have to be loaded here rather than in pry_instance as
     # we only want them loaded once per entire Pry lifetime.
     load_rc if Pry.config.should_load_rc
-    load_plugins if Pry.config.should_load_plugins
     load_requires if Pry.config.should_load_requires
     load_history if Pry.config.history.should_load
     load_traps if Pry.config.should_trap_interrupts
@@ -119,12 +115,7 @@ class Pry
     pry_instance.backtrace.shift if pry_instance.backtrace.first =~ /pry.*core_extensions.*pry/
 
     # yield the binding_stack to the hook for modification
-    pry_instance.exec_hook(
-                           :when_started,
-                           target,
-                           options,
-                           pry_instance
-                           )
+    pry_instance.exec_hook(:when_started, target, options, pry_instance)
 
     if !pry_instance.binding_stack.empty?
       head = pry_instance.binding_stack.pop
@@ -133,6 +124,7 @@ class Pry
     end
 
     # Enter the matrix
+    Pry::Plugins.run(true)
     pry_instance.repl(head)
   end
 
@@ -331,12 +323,10 @@ class Pry
 
   # Basic initialization.
   def self.init
-    @plugin_manager ||= PluginManager.new
     self.config ||= Config.new
     self.history ||= History.new
 
     reset_defaults
-    locate_plugins
   end
 
   # Return a `Binding` object for `target` or return `target` if it is

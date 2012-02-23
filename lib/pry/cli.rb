@@ -29,15 +29,6 @@ class Pry
         self
       end
 
-      # Bring in options defined in plugins
-      def add_plugin_options
-        Pry.plugins.values.each do |plugin|
-          plugin.load_cli_options
-        end
-
-        self
-      end
-
       # Add a block responsible for processing parsed options.
       def process_options(&block)
         self.option_processors ||= []
@@ -66,9 +57,6 @@ class Pry
     reset
   end
 end
-
-# Bring in options defined by plugins
-Pry::CLI.add_plugin_options
 
 # The default Pry command line options (before plugin options are included)
 Pry::CLI.add_options do
