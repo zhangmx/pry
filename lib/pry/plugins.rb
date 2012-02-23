@@ -1,4 +1,71 @@
 class Pry
+  class Plugins
+    class << self
+      @@disabled, @@enabled, @@list = [], {}, []
+
+      def disabled; @@disabled end
+      def list; @@list end
+      def enabled; @@enabled end
+
+      def disable value
+        if !value.empty?
+          @@disabled.push(value)
+        end
+      end
+
+      # For REPL/Pryrc Plugins.
+      # Not required for Pryrc.
+      def define_plugin plugin, &block
+        if block
+          plugin = Pry::Plugins.const_set(plugin, Class.new(Pry::Plugin, &block))
+        end
+
+        if plugin.class == OpenStruct
+          plugin.new = plugin.instance
+        end
+
+        # Soon to be modified to accept file_name.
+        @@enabled[plugin.plugin_name] = {
+          :listing => plugin.listing,
+          :version => plugin.version,
+          :instance => plugin.new,
+          :plugin_name => plugin.plugin_name,
+        }
+      end
+
+      def run
+        @@list.each do |plugin|
+          unless @@disabled.include?(plugin.plugin_name)
+            define_plugin OpenStruct.new(:listing => plugin.listing, :instance => plugin.new, :version => plugin.version, :plugin_name => plugin.plugin_name)
+          end
+        end
+
+        @@enabled
+      end
+    end
+  end
+
+  # Inherit.
+  class Plugin
+    class << self
+      %w(listing version plugin_name).each do |meth|
+        self.class_eval <<-EVAL
+          def #{meth} value = nil
+            if value && !value.empty?
+              @#{meth} = value
+            end
+
+            @#{meth}
+          end
+        EVAL
+      end
+
+      def inherited(subclass)
+        Pry::Plugins.list.push subclass
+      end
+    end
+  end
+
   class PluginManager
     PRY_PLUGIN_PREFIX = /^pry-/
 
