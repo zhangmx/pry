@@ -38,13 +38,10 @@ class Pry
       end
 
       def run
-        @@list.each do |plugin|
-          unless @@disabled.include?(plugin.plugin_name)
-            define_plugin OpenStruct.new(:listing => plugin.listing, :instance => plugin.new, :version => plugin.version, :plugin_name => plugin.plugin_name)
-          end
+        Gem.refresh
+        Hash[Gem.source_index.each.to_a].delete_if { |package, gem| package !~ /\A#{PREFIX}/ }.each do |package, gem|
+          begin; require gem.name; rescue => error; Warn error.message unless error.message.empty? end
         end
-
-        @@enabled
       end
     end
   end
@@ -52,7 +49,8 @@ class Pry
   # Inherit.
   class Plugin
     class << self
-      %w(listing version plugin_name).each do |meth|
+      # Alias VERSION to version if you like...
+      %w(printable_name version).each do |meth|
         self.class_eval <<-EVAL
           def #{meth} value = nil
             if value && !value.empty?
