@@ -1,11 +1,15 @@
 class Pry
   class Plugins
+    # Depricate IMO.
+    PREFIX = /^pry-/
+    
     class << self
       @@disabled, @@enabled, @@list = [], {}, []
 
       def disabled; @@disabled end
       def list; @@list end
       def enabled; @@enabled end
+      def prefix; PREFIX end
 
       def disable value
         if !value.empty?
