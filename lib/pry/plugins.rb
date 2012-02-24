@@ -56,6 +56,7 @@ class Pry
               return raise RuntimeError, error.message, 'Pry'
             end
 
+            @plugins.delete(plugin.name)
             warn "Plugin not loaded received an error: #{error.message}"
           end
         end
