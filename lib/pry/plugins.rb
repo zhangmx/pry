@@ -27,7 +27,7 @@ class Pry
       @user_disabled.to_a.each { |plugin| disable plugin }
 
       def define_plugin plugin_name, &block
-        if block && name
+        if block && plugin_name
           begin
             @plugins[plugin_name.downcase] = {
               :user_plugin => true,
@@ -38,7 +38,7 @@ class Pry
             warn "Unable to create plugin received an error: #{error.message}"
           end
         else
-          if !block && name || !name && block
+          if !block && plugin_name || !plugin_name && block
             return warn 'Unable to define a plugin without both a PluginName an a it\'s block.'
           end
         end
