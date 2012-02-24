@@ -1,3 +1,6 @@
+# A ready to build gem that is already deployed for this plugin system:
+# https://github.com/envygeeks/pry-vterm_aliases/tree/pry/plugin_system
+
 class Pry
   class Plugins
     PREFIX = /^pry-/
