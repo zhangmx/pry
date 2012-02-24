@@ -124,7 +124,6 @@ class Pry
     end
 
     # Enter the matrix
-    Pry::Plugins.run(true)
     pry_instance.repl(head)
   end
 
