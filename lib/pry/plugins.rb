@@ -67,6 +67,20 @@ class Pry
             warn "Plugin not loaded received an error: #{error.message} -- #{caller[1]}"
           end
         end
+
+        @plugins.each do |plugin_name, plugin|
+          unless @enabled[plugin_name]
+            @enabled[plugin_name] = plugin.merge!(:legacy => true)
+          else
+            if plugin[:plugin_constant].is_a? Class
+              begin @enabled[plugin_name][:plugin_instance] = plugin[:plugin_instance] = plugin[:plugin_constant].new
+              rescue
+                # Just to be sure, sometimes it can happen....
+                @enabled[plugin_name].delete(:plugin_instance)
+              end
+            end
+          end
+        end
       end
     end
   end
