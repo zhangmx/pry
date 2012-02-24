@@ -29,11 +29,12 @@ class Pry
       def define_plugin plugin_name, &block
         if block && plugin_name
           begin
-            @plugins[plugin_name.downcase] = {
+            @@enabled[plugin_name.downcase] = @plugins[plugin_name.downcase] = {
               :user_plugin => true,
               :plugin_instance => Pry::Plugins::User.const_set(plugin_name, Class.new(Pry::UserPlugin, &block))
             }
           rescue => error
+            @enabled.delete(plugin_name.downcase)
             @plugins.delete(plugin_name.downcase)
             warn "Unable to create plugin received an error: #{error.message}"
           end
