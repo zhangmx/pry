@@ -33,7 +33,7 @@ class Pry
         if block && plugin_name
           begin
             @enabled[plugin_name.downcase] = @plugins[plugin_name.downcase] = {
-              :user_plugin => true,
+              :plugin_user_plugin => true,
               :plugin_instance => Pry::Plugins::User.const_set(plugin_name, Class.new(Pry::UserPlugin, &block))
             }
           rescue => error
