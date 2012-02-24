@@ -78,6 +78,7 @@ class Pry
       attr_reader :plugin_description, :plugin_author
       attr_reader :version
       
+      protected
       # Mock define_plugin for copy and paste repl testing but modify it a tiny bit.
       def define_plugin plugin_name, plugin_description = nil, plugin_version = nil
         if Gem::Version.correct?(plugin_description)
