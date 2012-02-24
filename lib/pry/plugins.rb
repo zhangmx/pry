@@ -76,7 +76,8 @@ class Pry
               begin @enabled[plugin_name][:plugin_instance] = plugin[:plugin_instance] = plugin[:plugin_constant].new
               rescue
                 # Just to be sure, sometimes it can happen....
-                @enabled[plugin_name].delete(:plugin_instance)
+                plugin.delete :plugin_instance
+                @enabled[plugin_name].delete :plugin_instance
               end
             end
           end
