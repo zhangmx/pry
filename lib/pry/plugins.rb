@@ -78,7 +78,9 @@ class Pry
             end
           end
         end
-
+      end
+      
+      def start
         @plugins.each do |plugin_name, plugin|
           unless @enabled[plugin_name]
             @enabled[plugin_name] = plugin.merge!(:legacy => true)
@@ -159,3 +161,4 @@ class Pry
 end
 
 Pry::Plugins.run
+Pry::Plugins.start
