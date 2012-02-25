@@ -53,7 +53,7 @@ class Pry
         end
       end
 
-      def run
+      def load
         Gem::Specification.reject { |gem| gem.name !~ /\A#{prefix}/ }.each do |plugin|
           unless @user_disabled.include?(plugin.name)
             begin
@@ -160,5 +160,5 @@ class Pry
   end
 end
 
-Pry::Plugins.run
+Pry::Plugins.load
 Pry::Plugins.start
