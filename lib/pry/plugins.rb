@@ -15,7 +15,7 @@ class Pry
       def enabled; @enabled.dup end
       def disabled; @disabled.dup end
 
-      def disable *values
+      def disable(*values)
         values.each do |value|
           if !value.empty? && value.is_a?(String)
             @disabled.push(value)
@@ -34,7 +34,7 @@ class Pry
       @config_disabled.to_a.each { |plugin| disable plugin }
       remove_instance_variable(:@config_disabled)
 
-      def define_plugin plugin_name, &block
+      def(define_plugin plugin_name, &block)
         if block && plugin_name
           begin
             @enabled[plugin_name.downcase] = @plugins[plugin_name.downcase] = {
@@ -106,7 +106,7 @@ class Pry
       
       protected
       # Mock define_plugin for copy and paste repl testing but modify it a tiny bit.
-      def define_plugin plugin_name, plugin_description = nil, plugin_version = nil
+      def(define_plugin plugin_name, plugin_description = nil, plugin_version = nil)
         if Gem::Version.correct?(plugin_description)
           plugin_version, plugin_description = plugin_description, nil
         end
@@ -130,7 +130,7 @@ class Pry
       attr_reader :version
 
       protected
-      def define_plugin plugin_name, plugin_description = nil, plugin_version = nil
+      def(define_plugin plugin_name, plugin_description = nil, plugin_version = nil)
         return raise "Bailing #{plugin_name} does not match gem." if (ext_plugin = Pry::Plugins.plugins[plugin_name]).nil?
         plugin_version, plugin_description = plugin_description, nil if plugin_description == ext_plugin[:plugin_version]
         @plugin_version = @version = ext_plugin[:plugin_version] if plugin_version.nil?
