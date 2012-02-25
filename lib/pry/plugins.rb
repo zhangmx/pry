@@ -109,7 +109,7 @@ class Pry
       
       protected
       # Mock define_plugin for copy and paste repl testing but modify it a tiny bit.
-      def(define_plugin plugin_name, plugin_description = nil, plugin_version = nil)
+      def define_plugin(plugin_name, plugin_description = nil, plugin_version = nil)
         if Gem::Version.correct?(plugin_description)
           plugin_version, plugin_description = plugin_description, nil
         end
@@ -135,7 +135,7 @@ class Pry
       attr_reader :version
 
       protected
-      def(define_plugin plugin_name, plugin_description = nil, plugin_version = nil)
+      def define_plugin(plugin_name, plugin_description = nil, plugin_version = nil)
         return raise "Bailing #{plugin_name} does not match gem." if (ext_plugin = Pry::Plugins.plugins[plugin_name]).nil?
         plugin_version, plugin_description = plugin_description, nil if plugin_description == ext_plugin[:plugin_version]
         
