@@ -50,25 +50,27 @@ class Pry
 
       def run
         Gem::Specification.reject { |gem| gem.name !~ /\A#{prefix}/ }.each do |plugin|
-          begin
-            unless @plugins[plugin.name].is_a? Hash
-              @plugins[plugin.name] = {
-                :plugin_homepage => plugin.homepage,
-                :plugin_name => plugin.name,
-                :plugin_author => plugin.author,
-                :plugin_user_plugin => false,
-                :plugin_version => plugin.version.to_s,
-                :plugin_description => plugin.description,
-              }
-            end
+          unless @user_disabled.include?(plugin.name)
+            begin
+              unless @plugins[plugin.name].is_a? Hash
+                @plugins[plugin.name] = {
+                  :plugin_homepage => plugin.homepage,
+                  :plugin_name => plugin.name,
+                  :plugin_author => plugin.author,
+                  :plugin_user_plugin => false,
+                  :plugin_version => plugin.version.to_s,
+                  :plugin_description => plugin.description,
+                }
+              end
 
-            unless plugin.activated?
-              require @plugins[plugin.name][:plugin_name]
+              unless plugin.activated?
+                require @plugins[plugin.name][:plugin_name]
+              end
+            rescue => error
+              return raise RuntimeError, error.message, 'Pry' if error.message =~ /\ABailing/
+              @plugins.delete(plugin.name)
+              warn "Plugin not loaded received an error: #{error.message} -- #{caller[1]}"
             end
-          rescue => error
-            return raise RuntimeError, error.message, 'Pry' if error.message =~ /\ABailing/
-            @plugins.delete(plugin.name)
-            warn "Plugin not loaded received an error: #{error.message} -- #{caller[1]}"
           end
         end
 
