@@ -30,6 +30,7 @@ class Pry
       end
 
       @config_disabled.to_a.each { |plugin| disable plugin }
+      remove_instance_variable(:@config_disabled)
 
       def define_plugin plugin_name, &block
         if block && plugin_name
