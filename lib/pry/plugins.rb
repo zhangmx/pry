@@ -116,7 +116,7 @@ class Pry
         @plugin_name = name.to_s.downcase
         @plugin_description = plugin_description
         @plugin_version = @version = plugin_version
-        @plugin_homepage = Pry::Config.plugins.homepace || 'http://localhost.localdomain'
+        @plugin_homepage = Pry::Config.plugins.homepage || 'http://localhost.localdomain'
       end
     end
   end
