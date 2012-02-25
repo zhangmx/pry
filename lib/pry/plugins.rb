@@ -24,6 +24,7 @@ class Pry
           end
         end
       end
+      alias :disable :disable!
 
       if (@config_disabled = Pry.config.plugins.disabled).is_a? String
         # Thanks Ducanbeevers for spotting this bug.....
