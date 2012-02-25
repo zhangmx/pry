@@ -6,6 +6,7 @@ class Pry
     PREFIX = /^pry-/
     Gem.refresh
     Pry::Plugins.const_set(:User, Class.new)
+    Pry::Config.plugins = OpenStruct.new
 
     @disabled, @enabled, @plugins = [], {}, {}
     class << self
@@ -111,11 +112,11 @@ class Pry
 
         plugin_version = @version if plugin_version.nil?
         const_set(:VERSION, plugin_version)
-        @plugin_author = 'You'
+        @plugin_author = Pry::Config.plugins.author || 'You'
         @plugin_name = name.to_s.downcase
         @plugin_description = plugin_description
         @plugin_version = @version = plugin_version
-        @plugin_homepage = 'http://localhost.localdomain'
+        @plugin_homepage = Pry::Config.plugins.homepace || 'http://localhost.localdomain'
       end
     end
   end
