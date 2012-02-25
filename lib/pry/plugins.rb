@@ -14,9 +14,13 @@ class Pry
       def enabled; @enabled.dup end
       def disabled; @disabled.dup end
 
-      def disable value
-        if !value.empty?
-          @disabled.push(value)
+      def disable *values
+        values.each do |value|
+          if !value.empty? && value.is_a?(String)
+            @disabled.push(value)
+          else
+            warn "Invalid plugin name #{value}, ignored."
+          end
         end
       end
 
