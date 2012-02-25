@@ -24,14 +24,14 @@ class Pry
         end
       end
 
-      @user_disabled = Pry.config.disabled_plugins
+      @config_disabled = Pry.config.disabled_plugins
 
-      if @user_disabled.is_a? String
+      if @config_disabled.is_a? String
         # Thanks ducanbeevers for spotting this bug.
-        @user_disabled = @user_disabled.split /,\s*/
+        @config_disabled = @config_disabled.split /,\s*/
       end
 
-      @user_disabled.to_a.each { |plugin| disable plugin }
+      @config_disabled.to_a.each { |plugin| disable plugin }
 
       def define_plugin plugin_name, &block
         if block && plugin_name
