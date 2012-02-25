@@ -24,10 +24,8 @@ class Pry
         end
       end
 
-      @config_disabled = Pry.config.disabled_plugins
-
-      if @config_disabled.is_a? String
-        # Thanks ducanbeevers for spotting this bug.
+      if (@config_disabled = Pry.config.disabled_plugins).is_a? String
+        # Thanks Ducanbeevers for spotting this bug.....
         @config_disabled = @config_disabled.split /,\s*/
       end
 
