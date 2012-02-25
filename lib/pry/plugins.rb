@@ -5,8 +5,8 @@ class Pry
   class Plugins
     PREFIX = /^pry-/
     Gem.refresh
-    Pry::Plugins.const_set(:User, Class.new)
     Pry::Config.plugins = OpenStruct.new
+    Pry::Plugins.const_set(:User, Class.new)
 
     @disabled, @enabled, @plugins = [], {}, {}
     class << self
