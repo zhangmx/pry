@@ -113,6 +113,7 @@ class Pry
 
         plugin_version = @version if plugin_version.nil?
         const_set(:VERSION, plugin_version)
+        
         @plugin_author = Pry::Config.plugins.author || 'You'
         @plugin_name = name.to_s.downcase
         @plugin_description = plugin_description
@@ -133,11 +134,13 @@ class Pry
       def(define_plugin plugin_name, plugin_description = nil, plugin_version = nil)
         return raise "Bailing #{plugin_name} does not match gem." if (ext_plugin = Pry::Plugins.plugins[plugin_name]).nil?
         plugin_version, plugin_description = plugin_description, nil if plugin_description == ext_plugin[:plugin_version]
+        
         @plugin_version = @version = ext_plugin[:plugin_version] if plugin_version.nil?
         @plugin_description = plugin_description
         @plugin_description = ext_plugin[:plugin_description] if @plugin_description.nil?
 
         const_set(:VERSION, @version)
+        
         @plugin_name = plugin_name
         @plugin_author = ext_plugin[:plugin_author]
         @plugin_homepage = ext_plugin[:plugin_homepage]
