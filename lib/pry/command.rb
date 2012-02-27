@@ -420,7 +420,7 @@ class Pry
       begin
         dummy(*correct_arg_arity(block.arity, args), &command_block)
       rescue ArgumentError => ex
-        if ex.message =~ /1 for 0/
+        if ex.backtrace.first =~ /dummy/ && ex.message =~ /1 for 0/
           dummy(&command_block)
         else
           raise
