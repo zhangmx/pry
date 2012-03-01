@@ -4,7 +4,7 @@
 class Pry
   class Plugins
     PREFIX = /^pry-/
-    Gem.refresh
+
     Pry::Config.plugins = OpenStruct.new
     Pry::Config.user = OpenStruct.new
     Pry::Plugins.const_set(:User, Class.new)
@@ -55,6 +55,8 @@ class Pry
       end
 
       def load
+      Gem.refresh
+      
         Gem::Specification.reject { |gem| gem.name !~ /\A#{prefix}/ }.each do |plugin|
           unless @user_disabled.include?(plugin.name)
             begin
