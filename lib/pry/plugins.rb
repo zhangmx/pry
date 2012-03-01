@@ -2,6 +2,9 @@
 # https://github.com/envygeeks/pry-vterm_aliases/tree/pry/plugin_system
 
 ##
+# Tl;dr merge this fucking plugin because it doesn't break anything at all, only adds features ontop of Pry.
+
+##
 # The goal of this plugin is not to change the way pry acts with plugins, or reacts to plugins, just to add
 # features to plugins, features we will soon maybe want, such as tracking the instances, information about
 # plugins being merged in directly from the gemspec, centralizing plugin information to kill off the redundancy
@@ -20,6 +23,12 @@
 # back to it's origin, because sometimes tracing shit back to a monkey patch can be pretty damn complicated
 # and our goal should be to make it simple, not complicated and this plugin system is designed to be extensible
 # and simple, not complicated.
+#
+# As it stands right now, this plugin system replicates every feature (apart from the way users interact with
+# it via ~/.pryrc) of the current plugin system while adding the new features.  It requires no modifications to
+# current plugins and will never require any modifications to current gems and uses almost the same amount of
+# code which means that well why not just try it? It's not slower, it does not hinder and what it does is mostly
+# behind the scenes for Pry itself.
 
 
 class Pry
