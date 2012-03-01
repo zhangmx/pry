@@ -1,6 +1,27 @@
 # A ready to build gem that is already deployed for this plugin system:
 # https://github.com/envygeeks/pry-vterm_aliases/tree/pry/plugin_system
 
+##
+# The goal of this plugin is not to change the way pry acts with plugins, or reacts to plugins, just to add
+# features to plugins, features we will soon maybe want, such as tracking the instances, information about
+# plugins being merged in directly from the gemspec, centralizing plugin information to kill off the redundancy
+# we have... and so forth.  The original idea was to also allow hook based loading, but this is infeasable at
+# this point since no plugin really needs it, but there will be two hook points, load first and load last. It's
+# the same principle as load first init last but in this case it's going to be hook based (only to the plugin
+# system and not the author) where a plugin can use the pre-defined methods MyPlugin.first (on self obviously)
+# and MyPlugin#last (on the instance obviously -- but it will fall back to .last for classes that hide :new.)
+# It also adds a few optional and nifty features such as define_plugin but this isn't needed at all, but it's
+# recommended for the author to use it if they want to override the few things we allow them to override such
+# as the description shown when you type the command 'help'.
+#
+# The reason I separate User Space Plugins and Top Level Plugins is because there needs to be an audit trail
+# not for us, but for the user.  Clearly they could just monkey patch the class but that is on them if they
+# chose to do that, the way we do it is keeping it in UserPlugins and Plugins so each can be clearly traced
+# back to it's origin, because sometimes tracing shit back to a monkey patch can be pretty damn complicated
+# and our goal should be to make it simple, not complicated and this plugin system is designed to be extensible
+# and simple, not complicated.
+
+
 class Pry
   class Plugins
     PREFIX = /^pry-/
