@@ -52,6 +52,27 @@ class Pry
         exec "pry"
       end
 
+      create_command "raise-up", "Raise up an exception" do
+        def process
+          if arg_string.empty?
+            if _pry_.last_exception
+              _pry_.local_exception_whitelist << _pry_.last_exception
+              raise _pry_.last_exception
+            else
+              raise CommandError, "No exception to re-raise!"
+            end
+          else
+            begin
+              e = target.eval(arg_string)
+            rescue RescuableException
+              raise CommandError, "Invalid exception! #{arg_string}"
+            end
+            _pry_.local_exception_whitelist << e
+            raise e
+          end
+        end
+      end
+
       create_command /wtf([?!]*)/, "Show the backtrace of the most recent exception" do
         options :listing => 'wtf?'
 

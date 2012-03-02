@@ -24,6 +24,8 @@ class Pry
 
   attr_accessor :backtrace
 
+  attr_accessor :local_exception_whitelist
+
   # Special treatment for hooks as we want to alert people of the
   # changed API
   attr_reader :hooks
@@ -54,6 +56,7 @@ class Pry
 
     @binding_stack     = []
     @indent            = Pry::Indent.new
+    self.local_exception_whitelist = []
   end
 
   # Refresh the Pry instance settings from the Pry class.
@@ -84,6 +87,8 @@ class Pry
   def current_context
     binding_stack.last
   end
+
+  alias_method :cc, :current_context
 
   # The current prompt.
   # This is the prompt at the top of the prompt stack.
@@ -253,8 +258,13 @@ class Pry
 
     result
   rescue RescuableException => e
-    self.last_exception = e
-    e
+    if local_exception_whitelist.any? { |v| v === e }
+      local_exception_whitelist.delete(e)
+      raise e
+    else
+      self.last_exception = e
+      e
+    end
   ensure
     update_input_history(code)
     exec_hook :after_eval, result, self
