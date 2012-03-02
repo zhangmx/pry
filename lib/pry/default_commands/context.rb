@@ -65,10 +65,19 @@ class Pry
             begin
               e = target.eval(arg_string)
             rescue RescuableException
-              raise CommandError, "Invalid exception! #{arg_string}"
+              raise CommandError, "Invalid exception! got #{arg_string}"
             end
-            _pry_.local_exception_whitelist << e
-            raise e
+
+            e = RuntimeError.exception(e) if e.is_a?(String)
+            e = e.exception
+
+            case e
+            when  Exception
+              _pry_.local_exception_whitelist << e
+              raise e
+            else
+              raise CommandError, "Invalid Exception! got #{e}"
+            end
           end
         end
       end
