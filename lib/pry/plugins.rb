@@ -154,7 +154,7 @@ class Pry
         plugin_version = @version if plugin_version.nil?
         const_set(:VERSION, plugin_version)
         
-        @plugin_author = Pry::Config.user.name || (ENV['USERNAME'] || '').capitalize
+        @plugin_author = Pry::Config.user.name || (ENV['USERNAME'].to_s || '').capitalize
         @plugin_author = 'You' if @plugin_author.nil? || @plugin_author.empty?
         @plugin_name = name.to_s.downcase
         @plugin_description = plugin_description
