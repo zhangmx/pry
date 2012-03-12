@@ -63,7 +63,7 @@ class Pry
       else
         if !@config_disabled.is_a? Array
           @config_disabled = []
-          warn "A #{@config_disabled.class} is not accept for disabled plugins"
+          warn "A #{@config_disabled.class} is not accepted for disabled plugins"
         end
       end
 
