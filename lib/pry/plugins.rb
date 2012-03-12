@@ -199,5 +199,8 @@ class Pry
   end
 end
 
-Pry::Plugins.load
-Pry::Plugins.start
+Pry::Plugins.load if defined?(Pry::Plugins)
+
+if defined?(Pry::Plugins) && Pry::Plugins.respond_to?(:start)
+  Pry::Plugins.start
+end
