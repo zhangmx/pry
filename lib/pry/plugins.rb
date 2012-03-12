@@ -60,6 +60,11 @@ class Pry
       if (@config_disabled = Pry.config.plugins.disabled).is_a? String
         # Thanks Ducanbeevers for spotting this bug.....
         @config_disabled = @config_disabled.split /,\s*/
+      else
+        if !@config_disabled.is_a? Array
+          @config_disabled = []
+          warn 'A hash is not accept for disabled plugins'
+        end
       end
 
       @config_disabled.to_a.each { |plugin| disable plugin }
