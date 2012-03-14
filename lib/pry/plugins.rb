@@ -238,8 +238,6 @@ class Pry
     # Inherit
     class Base
       class << self
-        attr_reader :version
-
         protected
         def define_plugin(opts)
           opts = Pry::Plugin::Manager.validate_opts(opts)
