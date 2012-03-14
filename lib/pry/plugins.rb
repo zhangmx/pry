@@ -51,7 +51,10 @@ class Pry
         @prefix = v
       end
 
-      def loaded; @plugins.dup end
+      def loaded?(p)
+        @plugins.has_key?(p)
+      end
+      
       def enabled; @enabled.dup end
       def disabled; @disabled.dup end
 
@@ -271,7 +274,7 @@ class Pry
       protected
       def define_plugin(opts)
         opts = Pry::Plugins.validate_opts(opts)
-        if Pry::Plugins.loaded[opts[:name]].nil?
+        if Pry::Plugins.loaded?(opts[:name])
           return raise "Bailing #{opts[:name]} does not match gem."
         end
 
