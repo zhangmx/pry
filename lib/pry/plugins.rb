@@ -134,9 +134,6 @@ class Pry
         end
       end
 
-      @disabled.each { |p| disable(p) }
-      remove_instance_variable(:@disabled)
-
       # Define is a public but somewhat internal method for defining a plugin in the user space
       # of Pry.  It is preferred that users use define-plugin % &block when the command is
       # added to Pry.  The main reason it is considered public but somewhat internal is that
@@ -200,8 +197,10 @@ class Pry
       # Ruby1.8 Compatible: Unknown, Gem command might fail on some Debian and Fedora systems.
 
       def load
-      Gem.refresh
-
+        @disabled.each { |p| disable(p) }
+        remove_instance_variable(:@disabled)
+      
+        Gem.refresh
         Gem::Specification.reject { |gem| gem.name !~ @prefix }.each do |plugin|
           unless @blacklist.include?(plugin.name)
             begin
