@@ -131,7 +131,7 @@ class Pry
             begin
               @enabled[lower_name] = @plugins[lower_name] = {
                 :user_plugin => true,
-                :instance => Pry::Plugins::User.const_set(name, Class.new(Pry::Plugin::User, &block))
+                :instance => Pry::Plugins::User.const_set(name, Class.new(Pry::Plugin::Base, &block))
               }
             rescue => error
               @enabled.delete(lower_name)
@@ -262,6 +262,12 @@ class Pry
             }) { |key, old, new| if new.nil?; old else; new end }
           EVAL
         end
+      end
+    end
+    
+    class << self
+      def define(*args, &block)
+        Manager.define(*args, &block)
       end
     end
   end
