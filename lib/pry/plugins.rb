@@ -1,165 +1,268 @@
-# A ready to build gem that is already deployed for this plugin system:
-# https://github.com/envygeeks/pry-vterm_aliases/tree/pry/plugin_system
-
-##
-# Tl;dr merge this fucking plugin because it doesn't break anything at all, only adds features ontop of Pry.
-
-##
-# The goal of this plugin is not to change the way pry acts with plugins, or reacts to plugins, just to add
-# features to plugins, features we will soon maybe want, such as tracking the instances, information about
-# plugins being merged in directly from the gemspec, centralizing plugin information to kill off the redundancy
-# we have... and so forth.  The original idea was to also allow hook based loading, but this is infeasable at
-# this point since no plugin really needs it, but there will be two hook points, load first and load last. It's
-# the same principle as load first init last but in this case it's going to be hook based (only to the plugin
-# system and not the author) where a plugin can use the pre-defined methods MyPlugin.first (on self obviously)
-# and MyPlugin#last (on the instance obviously -- but it will fall back to .last for classes that hide :new.)
-# It also adds a few optional and nifty features such as define_plugin but this isn't needed at all, but it's
-# recommended for the author to use it if they want to override the few things we allow them to override such
-# as the description shown when you type the command 'help'.
-#
-# The reason I separate User Space Plugins and Top Level Plugins is because there needs to be an audit trail
-# not for us, but for the user.  Clearly they could just monkey patch the class but that is on them if they
-# chose to do that, the way we do it is keeping it in UserPlugins and Plugins so each can be clearly traced
-# back to it's origin, because sometimes tracing shit back to a monkey patch can be pretty damn complicated
-# and our goal should be to make it simple, not complicated and this plugin system is designed to be extensible
-# and simple, not complicated.
-#
-# As it stands right now, this plugin system replicates every feature (apart from the way users interact with
-# it via ~/.pryrc) of the current plugin system while adding the new features.  It requires no modifications to
-# current plugins and will never require any modifications to current gems and uses almost the same amount of
-# code which means that well why not just try it? It's not slower, it does not hinder and what it does is mostly
-# behind the scenes for Pry itself.
-
-
 class Pry
   class Plugins
-    PREFIX = /^pry-/
+    @acceptable_opts = [:version, :name, :description]
+    Pry::Config.plugins = OpenStruct.new()
+    @blacklist, @enabled, @plugins = [], {}, {}
 
-    Pry::Config.plugins = OpenStruct.new
-    Pry::Config.user = OpenStruct.new
-    Pry::Plugins.const_set(:User, Class.new)
-
-    @disabled, @enabled, @plugins = [], {}, {}
     class << self
+      attr_reader :prefix
+      @prefix = /\Apry-/
+
+      ##
+      # Exists as a compability layer, I am no fan of these constants laying around when we should
+      # clearly give users the abilty to modify things to their needs if we can.  I would prefer
+      # we kill this constant.
+
+      PREFIX = @prefix
+
+      ##
+      # Prefix=(v) is a method to set a custom prefix for pry if pry- isn't floating your boat.
+      # The idea is that companies should be able to customise their prefix to whatever they
+      # want, we do not know why they would want this but at the same time we should not care
+      # because everybody has a reason.
+      #
+      # REMOVAL NOTICE: I added this mostly to teach myself about playing with and cleaning
+      # Regex's, although a simple task to most, I like to always test myself on random
+      # bits every once in a while.  This feature could very well be removed since it's not
+      # really needed.  Though for those of you who want custom prefixes I will fight to keep
+      # that, just not this 'complicated' code.
+      #
+      # Method: Pry::Plugins.prefix=
+      # Simple Usage: Pry::Plugins.prefix = 'prefix' => /\Aprefix-/
+      # Simple Usage: Pry::Plugins.prefix = /prefix/ => /\Aprefix-/
+      # Simple Usage: Pry::Plugins.prefix = /\Aprefix-/ => /\Aprefix-/
+      # Ruby1.8 Compatible: Known to be incompatible with lesser than 1.9.3 because of append.
+
+      def prefix=(v)
+        unless v.is_a?(Regexp)
+          v = v.to_s
+
+          # Defensively guard against user ignorance.
+          if v.start_with?('/') && v.end_with?('/')
+            prefix = /#{v.gsub(/\A\//, '').gsub(/\/\Z/)}/
+          end
+
+          v = /\A#{v.chomp!('-')}-/
+        else
+          # Converts bad user regex to a decent one, depends though..
+          v = /#{v.source.chomp('-').gsub(/\\A/, '').prepend('\A')}-/
+        end
+
+        @prefix = v
+      end
+
       def plugins; @plugins.dup end
-      def prefix; PREFIX end
       def enabled; @enabled.dup end
       def disabled; @disabled.dup end
 
-      def disable(*values)
-        values.each do |value|
-          if !value.empty? && value.is_a?(String)
-            @disabled.push(value)
+      ##
+      # Validate opts sits as the option validator for Pry::Plugin.define_plugin and it's sister.
+      # It's an internal function that uses @acceptable_opts to validate that there are no extra
+      # options sent and that version is valid.
+      #
+      # Arguments: opts (Hash)
+      # Method: Validate Opts
+      # Internal: Yes
+      # Requires eq: Yes, converts string keys to hash keys.
+      # Ruby1.8 Compatible: Unknown, inject({}) known to fail.
+
+      def validate_opts(opts)
+        opts = opts.inject({}) do |h, (k, v)|
+          if v.nil?
+            v = ''
+          end
+
+          h.update(k.to_sym => v)
+        end
+
+        @acceptable_opts.each do |k|
+          unless opts.include?(k)
+            raise(RuntimeError, 'Missing required plugin option', 'Pry')
           else
-            warn "Invalid plugin name #{value}, ignored."
+            if k == :version
+              if !Gem::Version.correct?(opts[:version])
+                raise(RuntimeError, 'Improper version passed as a plugin options', 'Pry')
+              end
+            end
+          end
+        end
+
+        unknown_opts = (opts.keys - @acceptable_opts)
+        unless unknown_opts.length == 0
+          raise(RuntimeError, "Unknown opts: #{opts.join(', ')}) passed as a plugin options", 'Pry')
+        end
+
+        opts
+      end
+
+      ##
+      # Disable is a method to disable plugis before they even get required.  There is also an
+      # alias called disabled! that exists only as a compability layer for old skool users.
+      # It accepts unlimited options and does not warn you if a plugin name is invalid, it will
+      # simply ignore it.
+      #
+      # REFACTOR WARNING: This could be refactored within minutes of it's initial commit or even
+      # the night after.  There is strong debate between Jordon and Jordon over whether to raise
+      # or warn if a plugin name is invalid and rejected for inclusion.  Unless a fight breaks
+      # out and one of the Jordon's ends up dead you will have a decision about this soon.
+      #
+      # Arguments: *values (strings)
+      # Method: Pry::Plugins.disable
+      # Internal: No
+      # Requires eq: No
+      # Simple usage: Pry::Plugins.disable 'pry-plugin_name1, pry-plugin_name2'
+      # Simple usage: Pry::Plugins.disable 'pry-plugin_name1', 'pry-plugin_name2'
+
+      def disable(*values)
+        values.map(&:to_s).each do |value|
+          if !value.empty? && value.is_a?(String) && value !~ /\s/ && value !~ /\A\d+\Z/
+            @blacklist.push(value)
           end
         end
       end
       alias :disable :disable!
 
-      if (@config_disabled = Pry.config.plugins.disabled).is_a? String
-        # Thanks Ducanbeevers for spotting this bug.....
-        @config_disabled = @config_disabled.split /,\s*/
+      if (@disabled = Pry.config.plugins.disabled).is_a?(String)
+        @disabled = @disabled.split(/,\s*/)
       else
-        if !@config_disabled.is_a? Array
-          @config_disabled = []
+        if !@disabled.is_a?(Array)
+          @disabled = []
           warn "A #{@config_disabled.class} is not accepted for disabled plugins"
         end
       end
 
-      @config_disabled.to_a.each { |plugin| disable plugin }
-      remove_instance_variable(:@config_disabled)
+      @disabled.each { |p| disable(p) }
+      remove_instance_variable(:@disabled)
 
-      def(define_plugin plugin_name, &block)
-        if block && plugin_name
+      # Define is a public but somewhat internal method for defining a plugin in the user space
+      # of Pry.  It is preferred that users use define-plugin % &block when the command is
+      # added to Pry.  The main reason it is considered public but somewhat internal is that
+      # the second argument is always considered empty and therefore a clone of name in downcase
+      # form.  Any user who uses this method should never define a second argument as it will
+      # raise.
+      #
+      # There are some major differences to note about user space plugins in that user space
+      # plugins have no known information other then the constant name and it's instance. This
+      # could change and be reverted to it's earlier state where it did assume some of it and
+      # send it up, but until there is an elegent way discussed about the Pry.config options
+      # it's derived from this will be left out.
+      #
+      # REFACTOR WARNING: Jordon and Jordon are currently debating doing this like class_eval
+      # where we will accept both a string source and a block (either or) so the API could
+      # change to add that, but it won't affect current usages any as any Ruby programmer knows.
+      #
+      # Arguments:
+      #  * name (string) -- The name of your plugin (use ClassCaps)
+      #  * lower_name (string) -- Internal
+      #  * &block the source of your plugin (can use anything available to normal plugins)
+      # Method: Validate Opts
+      # Internal: Yes
+      # Requires eq: Yes, converts string keys to hash keys.
+      # Ruby1.8 Compatible: Unknown, inject({}) known to fail.
+
+
+      def define(name, lower_name = name.downcase, &block)
+        if block && name && lower_name == name.downcase
           begin
-            @enabled[plugin_name.downcase] = @plugins[plugin_name.downcase] = {
-              :plugin_user_plugin => true,
-              :plugin_instance => Pry::Plugins::User.const_set(plugin_name, Class.new(Pry::UserPlugin, &block))
+            @enabled[lower_name] = @plugins[lower_name] = {
+              :user_plugin => true,
+              :instance => Pry::Plugins::User.const_set(name, Class.new(Pry::Plugin::User, &block))
             }
           rescue => error
-            @enabled.delete(plugin_name.downcase)
-            @plugins.delete(plugin_name.downcase)
+            @enabled.delete(lower_name)
+            @plugins.delete(lower_name)
             warn "Unable to create plugin received an error: #{error.message}"
           end
         else
-          if !block && plugin_name || !plugin_name && block
-            return warn 'Unable to define a plugin without both a PluginName an a it\'s block.'
+          if !block && name || !name && block
+            return warn('Unable to define a plugin without both a name an a it\'s block.')
+          else
+            if name.downcase != lower_name
+              raise(ArgumentError, 'wrong number of arguments (2 for 1)')
+            end
           end
         end
       end
 
+      ##
+      # Load is the internal method for Pry to require all plugins that begin with the prefix.
+      # on of the big differences between this loader and Pry's loader is it does not assume
+      # the state of prefix by using the constant, it uses instance variable allowing the user
+      # to change the prefix to whatever they want.
+      #
+      # Arguments: None
+      # Method: Pry::Plugins.load
+      # Internal: Yes
+      # Requires eq: No
+      # Ruby1.8 Compatible: Unknown, Gem command might fail on some Debian and Fedora systems.
+
       def load
       Gem.refresh
-      
-        Gem::Specification.reject { |gem| gem.name !~ /\A#{prefix}/ }.each do |plugin|
-          unless @user_disabled.include?(plugin.name)
+
+        Gem::Specification.reject { |gem| gem.name !~ @prefix }.each do |plugin|
+          unless @blacklist.include?(plugin.name)
             begin
               unless @plugins[plugin.name].is_a? Hash
                 @plugins[plugin.name] = {
-                  :plugin_homepage => plugin.homepage,
-                  :plugin_name => plugin.name,
-                  :plugin_author => plugin.author,
-                  :plugin_user_plugin => false,
-                  :plugin_version => plugin.version.to_s,
-                  :plugin_description => plugin.description,
+                  :homepage => plugin.homepage,
+                  :author => plugin.author,
+                  :name => plugin.name
+                  :user_plugin => false,
+                  :version => plugin.version.to_s,
+                  :description => plugin.description,
                 }
               end
 
               unless plugin.activated?
-                require @plugins[plugin.name][:plugin_name]
+                # Can use plugin.name too, I guess..
+                require @plugins[plugin.name][:name]
               end
             rescue => error
-              return raise RuntimeError, error.message, 'Pry' if error.message =~ /\ABailing/
+              if error.message =~ /\ABailing/
+                return raise RuntimeError, error.message, 'Pry'
+              end
+
               @plugins.delete(plugin.name)
               warn "Plugin not loaded received an error: #{error.message} -- #{caller[1]}"
             end
           end
         end
       end
-      
+
+      ##
+      # Start is the internal method for Pry to start plugins that wish to 'load' last.  The
+      # idea is that the plugin creates the initialize method and puts anything they need done
+      # there and
+      # Load is the internal method for Pry to require all plugins that begin with the prefix.
+      # on of the big differences between this loader and Pry's loader is it does not assume
+      # the state of prefix by using the constant, it uses instance variable allowing the user
+      # to change the prefix to whatever they want.
+      #
+      # Arguments: None
+      # Method: Pry::Plugins.load
+      # Internal: Yes
+      # Requires eq: No
+      # Ruby1.8 Compatible: Unknown, Gem command might fail on some Debian and Fedora systems.
+
       def start
-        @plugins.each do |plugin_name, plugin|
-          unless @enabled[plugin_name]
-            @enabled[plugin_name] = plugin.merge!(:legacy => true)
+        @plugins.each do |name, plugin|
+          unless @enabled[name]
+            @enabled[name] = plugin.merge!(:legacy => true)
           else
-            if plugin[:plugin_constant].is_a? Class
-              begin @enabled[plugin_name][:plugin_instance] = plugin[:plugin_instance] = plugin[:plugin_constant].new
+            if plugin[:constant].is_a?(Class) && plugin[:constant].respond_to?(:new)
+              begin
+                unless plugin[:instance].instance_of?(plugin[:constant])
+                  if plugin[:constant].instance_method(:initialize).owner == plugin[:constant]
+                    @enabled[name][:instance] = plugin[:instance] = plugin[:constant].new
+                  end
+                end
               rescue
-                # Just to be sure, sometimes it can happen....
-                plugin.delete :plugin_instance
-                @enabled[plugin_name].delete :plugin_instance
+                plugin.delete(:instance)
+                @enabled[name].delete :instance
               end
             end
           end
         end
-      end
-    end
-  end
-
-  # Inherit.
-  class UserPlugin
-    class << self
-      attr_reader :plugin_name, :plugin_version, :plugin_homepage
-      attr_reader :plugin_description, :plugin_author
-      attr_reader :version
-      
-      protected
-      # Mock define_plugin for copy and paste repl testing but modify it a tiny bit.
-      def define_plugin(plugin_name, plugin_description = nil, plugin_version = nil)
-        if Gem::Version.correct?(plugin_description)
-          plugin_version, plugin_description = plugin_description, nil
-        end
-
-        plugin_version = @version if plugin_version.nil?
-        const_set(:VERSION, plugin_version)
-        
-        @plugin_author = Pry::Config.user.name || (ENV['USERNAME'].to_s || '').capitalize
-        @plugin_author = 'You' if @plugin_author.nil? || @plugin_author.empty?
-        @plugin_name = name.to_s.downcase
-        @plugin_description = plugin_description
-        @plugin_version = @version = plugin_version
-        @plugin_homepage = Pry::Config.user.homepage || 'http://localhost.localdomain'
       end
     end
   end
@@ -167,40 +270,57 @@ class Pry
   # Inherit.
   class Plugin
     class << self
-      attr_reader :plugin_name, :plugin_version, :plugin_homepage
-      attr_reader :plugin_description, :plugin_author
       attr_reader :version
 
       protected
-      def define_plugin(plugin_name, plugin_description = nil, plugin_version = nil)
-        return raise "Bailing #{plugin_name} does not match gem." if (ext_plugin = Pry::Plugins.plugins[plugin_name]).nil?
-        plugin_version, plugin_description = plugin_description, nil if plugin_description == ext_plugin[:plugin_version]
-        
-        @plugin_version = @version = ext_plugin[:plugin_version] if plugin_version.nil?
-        @plugin_description = plugin_description
-        @plugin_description = ext_plugin[:plugin_description] if @plugin_description.nil?
+      def define_plugin(opts)
+        opts = Pry::Plugins.validate_opts(opts)
+        if Pry::Plugins.plugins[opts[:name]].nil?
+          return raise "Bailing #{opts[:name]} does not match gem."
+        end
 
-        const_set(:VERSION, @version)
-        
-        @plugin_name = plugin_name
-        @plugin_author = ext_plugin[:plugin_author]
-        @plugin_homepage = ext_plugin[:plugin_homepage]
+        unless defined?(@version)
+          attr_reader :version
+          @version = opts[:version]
+        end
 
+        const_set(:VERSION, opts[:version]) unless defined?(VERSION)
         Pry::Plugins.class_eval <<-EVAL
-          @enabled["#{plugin_name}"] = @plugins["#{plugin_name}"].merge!({
-            :plugin_version => "#{plugin_version}",
-            :plugin_name => "#{plugin_name}",
-            :plugin_constant => #{name},
-            :plugin_description => "#{plugin_description}"
+          @enabled["#{opts[:name]}"] = @plugins["#{opts[:name]}"].merge!({
+            :version => "#{opts[:version]}",
+            :name => "#{opts[:name]}",
+            :constant => #{name},
+            :description => "#{opts[:descriptio]}"
           }) { |key, old, new| if new.nil?; old else; new end }
         EVAL
       end
     end
   end
+
+  # Inherit.
+  class User
+    class << self
+
+      protected
+      def define_plugin(opts)
+        opts = Pry::Plugins.validate_opts(opts)
+        unless defined?(@version)
+          attr_reader :version
+          @version = opts[:version]
+        end
+
+        unless defined?(VERSION)
+          const_set(:VERSION, opts[:version])
+        end
+      end
+    end
+  end
 end
 
+# This gets loaded early.
 Pry::Plugins.load if defined?(Pry::Plugins)
 
+# This gets loaded at the very end of everything.
 if defined?(Pry::Plugins) && Pry::Plugins.respond_to?(:start)
   Pry::Plugins.start
 end
