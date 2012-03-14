@@ -1,5 +1,5 @@
 class Pry
-  class Plugins
+  module Plugins
     @acceptable_opts = [:version, :name, :description]
     Pry::Config.plugins = OpenStruct.new()
     @blacklist, @enabled, @plugins = [], {}, {}
