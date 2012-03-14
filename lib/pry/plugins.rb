@@ -232,17 +232,13 @@ class Pry
       ##
       # Start is the internal method for Pry to start plugins that wish to 'load' last.  The
       # idea is that the plugin creates the initialize method and puts anything they need done
-      # there and
-      # Load is the internal method for Pry to require all plugins that begin with the prefix.
-      # on of the big differences between this loader and Pry's loader is it does not assume
-      # the state of prefix by using the constant, it uses instance variable allowing the user
-      # to change the prefix to whatever they want.
+      # there and we check for initialize and then ininitialize it just before Pry starts.
       #
       # Arguments: None
-      # Method: Pry::Plugins.load
+      # Method: Pry::Plugins.start
       # Internal: Yes
       # Requires eq: No
-      # Ruby1.8 Compatible: Unknown, Gem command might fail on some Debian and Fedora systems.
+      # Ruby1.8 Compatible: Yes.
 
       def start
         @plugins.each do |name, plugin|
