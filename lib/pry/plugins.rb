@@ -83,7 +83,7 @@ class Pry
 
         def disable(*values)
           values.map(&:to_s).each do |value|
-            if !value.empty? && value.is_a?(String) && value !~ /\s/ && value !~ /\A\d+\Z/
+            if !value.empty? && value !~ /\s/ && value !~ /\A\d+\Z/
               @blacklist.push(value)
             end
           end
