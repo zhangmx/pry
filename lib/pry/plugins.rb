@@ -57,7 +57,7 @@ class Pry
 
           unknown_opts = (opts.keys - @acceptable_opts)
           unless unknown_opts.length == 0
-            raise(RuntimeError, "Unknown opts: #{opts.join(', ')}) passed as a plugin options", 'Pry')
+            raise(ArgumentError, "Unknown opts: #{opts.join(', ')}) passed as a plugin options", 'Pry')
           end
 
           opts
