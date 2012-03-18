@@ -80,8 +80,8 @@ class Pry
             self.content << File.read(File.expand_path(file))
           end
           opt.on :p, :public, "Create a public gist (default: false)", :default => false
-          opt.on :l, :lines, "Only gist a subset of lines.", :optional => true, :as => Range, :default => 1..-1
-          opt.on :i, :in, "Gist entries from Pry's input expression history. Takes an index or range.", :optional => true,
+          opt.on :l, :lines, "Only gist a subset of lines.", :optional_argument => true, :as => Range, :default => 1..-1
+          opt.on :i, :in, "Gist entries from Pry's input expression history. Takes an index or range.", :optional_argument => true,
           :as => Range, :default => -5..-1 do |range|
             range = convert_to_range(range)
             input_expressions = _pry_.input_array[range] || []
@@ -183,8 +183,8 @@ class Pry
           opt.on :f, :file, "Save a file.", true do |file|
             self.content << File.read(File.expand_path(file))
           end
-          opt.on :l, :lines, "Only save a subset of lines.", :optional => true, :as => Range, :default => 1..-1
-          opt.on :i, :in, "Save entries from Pry's input expression history. Takes an index or range.", :optional => true,
+          opt.on :l, :lines, "Only save a subset of lines.", :optional_argument => true, :as => Range, :default => 1..-1
+          opt.on :i, :in, "Save entries from Pry's input expression history. Takes an index or range.", :optional_argument => true,
           :as => Range, :default => -5..-1 do |range|
             input_expressions = _pry_.input_array[range] || []
             Array(input_expressions).each { |v| self.content << v }
@@ -240,11 +240,11 @@ class Pry
         USAGE
 
         def options(opt)
-          opt.on :ex,        "Show the context of the last exception.", :optional => true, :as => Integer
-          opt.on :i, :in,    "Show one or more entries from Pry's expression history.", :optional => true, :as => Range, :default => -5..-1
+          opt.on :ex,        "Show the context of the last exception.", :optional_argument => true, :as => Integer
+          opt.on :i, :in,    "Show one or more entries from Pry's expression history.", :optional_argument => true, :as => Range, :default => -5..-1
 
-          opt.on :s, :start, "Starting line (defaults to the first line).", :optional => true, :as => Integer
-          opt.on :e, :end,   "Ending line (defaults to the last line).", :optional => true, :as => Integer
+          opt.on :s, :start, "Starting line (defaults to the first line).", :optional_argument => true, :as => Integer
+          opt.on :e, :end,   "Ending line (defaults to the last line).", :optional_argument => true, :as => Integer
           opt.on :l, :'line-numbers', "Show line numbers."
           opt.on :t, :type,  "The file type for syntax highlighting (e.g., 'ruby' or 'python').", true, :as => Symbol
 

@@ -37,8 +37,8 @@ class Pry
         BANNER
 
         def options(opt)
-          opt.on :e, :ex, "Open the file that raised the most recent exception (_ex_.file)", :optional => true, :as => Integer
-          opt.on :i, :in, "Open a temporary file containing the Nth line of _in_. N may be a range.", :optional => true, :as => Range, :default => -1..-1
+          opt.on :e, :ex, "Open the file that raised the most recent exception (_ex_.file)", :optional_argument => true, :as => Integer
+          opt.on :i, :in, "Open a temporary file containing the Nth line of _in_. N may be a range.", :optional_argument => true, :as => Range, :default => -1..-1
           opt.on :t, :temp, "Open an empty temporary file"
           opt.on :l, :line, "Jump to this line in the opened file", true, :as => Integer
           opt.on :n, :"no-reload", "Don't automatically reload the edited code"
@@ -342,8 +342,8 @@ class Pry
           opt.on :f, :file, "Play a file.", true do |file|
             self.content << File.read(File.expand_path(file))
           end
-          opt.on :l, :lines, "Only play a subset of lines.", :optional => true, :as => Range, :default => 1..-1
-          opt.on :i, :in, "Play entries from Pry's input expression history. Takes an index or range. Note this can only replay pure Ruby code, not Pry commands.", :optional => true,
+          opt.on :l, :lines, "Only play a subset of lines.", :optional_argument => true, :as => Range, :default => 1..-1
+          opt.on :i, :in, "Play entries from Pry's input expression history. Takes an index or range. Note this can only replay pure Ruby code, not Pry commands.", :optional_argument => true,
           :as => Range, :default => -5..-1 do |range|
             input_expressions = _pry_.input_array[range] || []
             Array(input_expressions).each { |v| self.content << v }
