@@ -35,7 +35,12 @@ if !(RUBY_VERSION["1.8"] && !defined?(RUBY_ENGINE))
         mock_pry("find-method timothy MyKlass").should.not =~ /MyKlass.*?goodbye/m
       end
     end
-    
+  end
+
+  describe "regression tests" do
+    it "should not raise when invoked in object instance" do
+      mock_pry("find-method hello").should.not =~ /Error/
+    end
   end
 
   Object.remove_const(:MyKlass)
