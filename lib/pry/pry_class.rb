@@ -156,56 +156,8 @@ class Pry
   # Execute the file through the REPL loop, non-interactively.
   # @param [String] file_name File name to load through the REPL.
   def self.load_file_through_repl(file_name)
-    full_name = File.expand_path(file_name)
-    raise RuntimeError, "No such file: #{full_name}" if !File.exists?(full_name)
-
-    content = StringIO.new(File.read(full_name))
-
-    initial_session_setup
-
-    original_input = Pry.config.input
-    original_print = Pry.config.print
-    original_exception_handler = Pry.config.exception_handler
-
-
-    restore_originals = proc do |_pry_|
-      _pry_.input = original_input
-      _pry_.print = original_print
-      _pry_.exception_handler = original_exception_handler
-    end
-
-    non_interactive_mode = proc do |_pry_|
-      _pry_.print = proc {}
-      _pry_.exception_handler = (proc do |o, e, _pry_|
-                                   _pry_.run_command "cat --ex"
-                                   o.puts "...exception encountered, going interactive!"
-                                   restore_originals.call(_pry_)
-                                 end)
-    end
-
-    Pry::Commands.command "make-interactive", "Make the session interactive" do
-      self._pry_.input_stack.push self._pry_.input
-      restore_originals.call(_pry_)
-    end
-
-    Pry::Commands.command "make-non-interactive", "Make the session non-interactive" do
-      self._pry_.input = _pry_.input_stack.pop
-      non_interactive_mode.call(_pry_)
-    end
-
-    Pry::Commands.command "load-file", "Load another file through the repl" do |file_name|
-      file_input = StringIO.new(File.read(File.expand_path(file_name)))
-
-      _pry_.input_stack.push(_pry_.input)
-      _pry_.input = file_input
-    end
-
-    Pry.start(Pry.toplevel_binding,
-              :input => content,
-              :input_stack => [StringIO.new("exit-all\n")],
-              :when_started => proc do |o, t, _pry_|
-                non_interactive_mode.call(_pry_)
-              end)
+    require "pry/repl_file_loader"
+    REPLFileLoader.new(file_name).load
   end
 
   # An inspector that clips the output to `max_length` chars.
