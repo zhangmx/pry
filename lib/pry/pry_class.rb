@@ -62,7 +62,7 @@ class Pry
     files = RC_FILES.collect { |file_name| File.expand_path(file_name) }.uniq
     files.each do |file_name|
       begin
-        load(file_name) if File.exists?(file_name)
+        toplevel_binding.eval(File.read(file_name)) if File.exists?(file_name)
       rescue RescuableException => e
         puts "Error loading #{file_name}: #{e}"
       end
@@ -91,7 +91,7 @@ class Pry
 
     # note these have to be loaded here rather than in pry_instance as
     # we only want them loaded once per entire Pry lifetime.
-    # load_rc if Pry.config.should_load_rc
+    load_rc if Pry.config.should_load_rc
     load_plugins if Pry.config.should_load_plugins
     load_requires if Pry.config.should_load_requires
     load_history if Pry.config.history.should_load
@@ -141,22 +141,6 @@ class Pry
       puts defined?(Win32::Console) ? "\e[0F" : "\e[0A\e[0G"
     end
 
-    # rcs = RC_FILES.collect do |file_name|
-    #   full_name = File.expand_path(file_name)
-    #   StringIO.new(File.read(full_name)) if File.exists?(full_name)
-    # end.uniq.compact
-
-    # old_input = pry_instance.input
-    # pry_instance.input = rcs.shift
-    # pry_instance.input_stack.push(*rcs)
-    # pry_instance.input_stack.push(old_input)
-    # pry_instance.print = proc {}
-    # pry_instance.hooks.add_hook(:input_object_changed, :hi) do |old, new, _pry|
-    #   _pry.print = Pry::DEFAULT_PRINT
-    # end
-
-    prepare_rc_file_load(pry_instance)
-
     # Enter the matrix
     pry_instance.repl(head)
   end
@@ -168,32 +152,49 @@ class Pry
     end.uniq.compact
   end
 
-  def self.prepare_rc_file_load(pry_instance)
-    rcs = rc_files.map { |v| StringIO.new(File.read(v)) }
-    return if rcs.empty?
+  def self.load_file_through_repl(file_name)
+    full_name = File.expand_path(file_name)
+    raise RuntimeError, "No such file: #{full_name}" if !File.exists?(full_name)
 
-    original_input = pry_instance.input
-    pry_instance.input = rcs.shift
-    pry_instance.input_stack.push(*rcs) if !rcs.empty?
-    pry_instance.input_stack.push(original_input)
+    content = StringIO.new(File.read(full_name))
 
-    old_print = pry_instance.print
-    pry_instance.print = proc {}
+    initial_session_setup
 
-    old_exception_handler = pry_instance.exception_handler
-    pry_instance.exception_handler = proc do |output, ex, _pry_|
-      _pry_.run_command "cat --ex"
-      output.puts "...exception encountered, going interactive!"
+    original_input = Pry.config.input
+    original_print = Pry.config.print
+    original_exception_handler = Pry.config.exception_handler
+
+    restore_originals = proc do |_pry_|
       _pry_.input = original_input
+      _pry_.print = original_print
+      _pry_.exception_handler = original_exception_handler
     end
 
-    pry_instance.hooks.add_hook(:input_object_changed, :restore_print) do |old_input, new_input, _pry_|
-      if new_input == original_input
-        _pry_.print = old_print
-        _pry_.exception_handler = old_exception_handler
-        _pry_.hooks.delete_hook(:input_object_changed, :restore_print)
-      end
+    Pry::Commands.command "make-interactive", "Make the session interactive" do
+      self._pry_.input_stack.push self._pry_.input
+      self._pry_.input = original_input
     end
+
+    Pry::Commands.command "make-non-interactive", "Make the session non-interactive" do
+      self._pry_.input = _pry_.input_stack.pop
+    end
+
+    Pry::Commands.command "load-file", "Load another file through the repl" do |file_name|
+      file_input = StringIO.new(File.expand_path(file_name))
+
+      _pry_.input_stack.push(_pry_.input)
+      _pry_.input = file_input
+    end
+
+    Pry.start(Pry.toplevel_binding,
+              :input => content,
+              :input_stack => [StringIO.new("exit-all\n")],
+              :print => proc {},
+              :exception_handler => (proc do |o, e, _pry_|
+                                       _pry_.run_command "cat --ex"
+                                       o.puts "...exception encountered, going interactive!"
+                                       restore_originals.call(_pry_)
+                                     end))
   end
 
   # An inspector that clips the output to `max_length` chars.
