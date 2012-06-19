@@ -147,7 +147,7 @@ end.process_options do |opts|
   # create the actual context
   context = Pry.binding_for(eval(opts[:context]))
 
-  if Pry::CLI.input_args.any?
+  if Pry::CLI.input_args.any? && Pry::CLI.input_args != ["pry"]
     full_name = File.expand_path(Pry::CLI.input_args.first)
     Pry.load_file_through_repl(full_name)
     exit
