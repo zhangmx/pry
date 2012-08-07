@@ -99,6 +99,22 @@ class Pry
         def indent(text, chars)
           text.lines.map { |l| "#{' ' * chars}#{l}" }.join
         end
+
+        # Wraps the +text+ into lines no longer than +line_width+ width.
+        #
+        # @param [String] text The text to be wrapped.
+        # @param [Integer] line_width The maximum width of the line.
+        # @return [String] The wrapped +text+.
+        def wrap(text, line_width=80)
+          text.split("\n").collect do |line|
+            if line.length > line_width
+              line.gsub(/(.{1,#{ line_width }})(\s+|$)/, "\\1\n").strip
+            else
+              line
+            end
+          end * "\n"
+        end
+
       end
 
     end
