@@ -94,12 +94,14 @@ class Pry
       # @param [IO] output The output stream.
       # @return [void]
       def show_installed_plugins(plugins, output = Pry.config.output)
-        output.puts "Installed Plugins:"
-        output.puts "--"
+        plugins_list = []
+        plugins_list << "Installed Plugins:" << "--"
+
         plugins.each do |name, plugin|
-          plugin_tuple = "#{ name }".ljust(18) + plugin.spec.summary
-          Helpers::BaseHelpers.stagger_output plugin_tuple, output
+          plugins_list << "#{ name }".ljust(18) + plugin.spec.summary
         end
+
+        Helpers::BaseHelpers.stagger_output plugins_list.join("\n"), output
       end
 
       # Display a list of all remote plugins. Remote plugins are Ruby gems that
@@ -110,17 +112,13 @@ class Pry
       # @param [IO] output The output stream.
       # @return [void]
       def show_remote_plugins(plugins, output = Pry.config.output)
-        output.puts "Remote Plugins:"
-        output.puts "--"
+        plugins_list = []
+        plugins_list << "Remote Plugins:" << "--"
 
         # Exclude Pry's dependencies and Pry itself, because they're already
         # installed in the system (you won't be able to use Pry otherwise).
         exclude_deps = Gem::Specification.find_by_name("pry").dependencies.map(&:name)
         exclude_deps << "pry"
-
-        # The array of Pry plugin entries (contain plugins' name, description and
-        # some other data).
-        list = []
 
         plugins.each_with_index do |(name, plugin), index|
           index += 1
@@ -129,16 +127,16 @@ class Pry
           info = text.indent(text.wrap(plugin.info, 74), 6)
 
           unless deps.empty?
-            dependencies = "\n\n#{ text.indent("Dependencies:", 6) } #{ deps.join(", ") }"
-            dependencies = text.wrap(dependencies, 74)
+            dependencies = text.indent("\n\nDependencies:\n", 6)
+            dependencies << text.indent(text.wrap(deps.join(", "), 72), 8)
           end
 
           entry = [index, ". ", name, "\n", info, dependencies].join
 
-          list << entry
+          plugins_list << entry
         end
 
-        Helpers::BaseHelpers.stagger_output(list.join("\n"), output)
+        Helpers::BaseHelpers.stagger_output plugins_list.join("\n"), output
       end
     end
 
