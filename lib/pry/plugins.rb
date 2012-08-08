@@ -1,6 +1,16 @@
+require 'net/http'
+require 'uri'
+require 'yaml'
+
 class Pry
   class PluginManager
-    PRY_PLUGIN_PREFIX = /^pry-/
+
+    # The prefix used to distinguish Pry plugins from other gems. Name your gem
+    # with this prefix to allow it to be used as a plugin.
+    PRY_PLUGIN_PREFIX = "pry-"
+
+    # The API endpoint address for plugins.
+    PLUGINS_HOST = "https://rubygems.org"
 
     # Placeholder when no associated gem found, displays warning
     class NoPlugin
@@ -60,43 +70,164 @@ class Pry
       alias enabled? enabled
     end
 
-    # Display a list of all installed plugins.
-    #
-    # @param [Hash{String => PluginManager::Plugin}] plugins The Array of
-    #   installed plugins.
-    # @param [IO] output The output stream.
-    # @return [void]
-    def self.show_installed_plugins(plugins, output=Pry.config.output)
-      output.puts "Installed Plugins:"
-      output.puts "--"
-      plugins.each do |name, plugin|
-        output.puts "#{ name }".ljust(18) + plugin.spec.summary
+    RemotePlugin = Struct.new(:name, :gem_name, :data) do
+      def method_missing(method, *args, &block)
+        if data.has_key?(key = method.to_s)
+          data[key]
+        else
+          super
+        end
+      end
+    end
+
+    class << self
+      # Just a shortcut.
+      def text
+        Pry::Helpers::Text
+      end
+      private :text
+
+      # Display a list of all installed plugins.
+      #
+      # @param [Hash{String => PluginManager::Plugin}] plugins The Array of
+      #   installed plugins.
+      # @param [IO] output The output stream.
+      # @return [void]
+      def show_installed_plugins(plugins, output = Pry.config.output)
+        output.puts "Installed Plugins:"
+        output.puts "--"
+        plugins.each do |name, plugin|
+          plugin_tuple = "#{ name }".ljust(18) + plugin.spec.summary
+          Helpers::BaseHelpers.stagger_output plugin_tuple, output
+        end
+      end
+
+      # Display a list of all remote plugins. Remote plugins are Ruby gems that
+      # start with {PluginManager::PRY_PLUGIN_PREFIX plugin prefix}.
+      #
+      # @param [Hash{String => PluginManager::RemotePlugin}] plugins The array of
+      #   remote plugins.
+      # @param [IO] output The output stream.
+      # @return [void]
+      def show_remote_plugins(plugins, output = Pry.config.output)
+        output.puts "Remote Plugins:"
+        output.puts "--"
+
+        # Exclude Pry's dependencies and Pry itself, because they're already
+        # installed in the system (you won't be able to use Pry otherwise).
+        exclude_deps = Gem::Specification.find_by_name("pry").dependencies.map(&:name)
+        exclude_deps << "pry"
+
+        # The array of Pry plugin entries (contain plugins' name, description and
+        # some other data).
+        list = []
+
+        plugins.each_with_index do |(name, plugin), index|
+          index += 1
+          name = text.bold(name.ljust(4))
+          deps = plugin.dependencies["runtime"].map { |dep| dep["name"]  } - exclude_deps
+          info = text.indent(text.wrap(plugin.info, 74), 6)
+
+          unless deps.empty?
+            dependencies = "\n\n#{ text.indent("Dependencies:", 6) } #{ deps.join(", ") }"
+            dependencies = text.wrap(dependencies, 74)
+          end
+
+          entry = [index, ". ", name, "\n", info, dependencies].join
+
+          list << entry
+        end
+
+        Helpers::BaseHelpers.stagger_output(list.join("\n"), output)
       end
     end
 
     def initialize
       @plugins = []
+      @remote_plugins = []
     end
 
-    # Find all installed Pry plugins and store them in an internal array.
-    def locate_plugins
-      Gem.refresh
-      (Gem::Specification.respond_to?(:each) ? Gem::Specification : Gem.source_index.find_name('')).each do |gem|
-        next if gem.name !~ PRY_PLUGIN_PREFIX
-        plugin_name = gem.name.split('-', 2).last
-        @plugins << Plugin.new(plugin_name, gem.name, gem, true) if !gem_located?(gem.name)
+    # Dispatcher for the plugin location.
+    #
+    # @param [Symbol] place The place where to locate plugins, `:local` or
+    #   `remote`
+    # @return [void]
+    def locate_plugins(place = :local)
+      case place
+      when :local
+        find_local_plugins
+      when :remote
+        find_remote_plugins
       end
+    end
+
+    # Finds all installed Pry plugins and stores them in an internal array.
+    #
+    # @return [Array<PluginManager::Plugin>] The Array of all installed plugins.
+    def find_local_plugins
+      Gem.refresh
+
+      gems = if Gem::Specification.respond_to?(:each)
+               Gem::Specification
+             else
+               Gem.source_index.find_name('')
+             end
+
+      gems.each do |gem|
+        gem_name = gem.name
+        next if gem_name !~ /^#{ PRY_PLUGIN_PREFIX }/
+        plugin_name = extract_plugin_name(gem_name)
+
+        unless gem_located?(gem_name)
+          @plugins << Plugin.new(plugin_name, gem_name, gem, true)
+        end
+      end
+
       @plugins
     end
 
-    # @return [Hash] A hash with all plugin names (minus the 'pry-') as
-    #   keys and Plugin objects as values.
-    def plugins
-      h = Hash.new { |_, key| NoPlugin.new(key) }
-      @plugins.each do |plugin|
-        h[plugin.name] = plugin
+    # Finds all remote plugins. The method communicates with Rubygems API in
+    # order to fetch all gems that start with {PluginManager::PRY_PLUGIN_PREFIX}
+    # and stores them in an internal array.
+    #
+    # @return [Array<PluginManager::RemotePlugin>] The Array of all remote
+    #   Pry plugins.
+    def find_remote_plugins
+      path = "/api/v1/search.yaml?query=#{ PRY_PLUGIN_PREFIX }"
+      uri = URI.parse([PLUGINS_HOST, path].join)
+
+      request = Net::HTTP::Get.new(uri.request_uri)
+      request.add_field "Connection", "keep-alive"
+      request.add_field "Keep-Alive", "15"
+      request.content_type = "application/x-www-form-urlencoded"
+
+      connection = Net::HTTP.new(uri.host, uri.port)
+      if uri.scheme == "https"
+        require 'net/https'
+        connection.use_ssl = true
+        connection.verify_mode = OpenSSL::SSL::VERIFY_NONE
       end
-      h
+      connection.start
+
+      response = connection.request(request)
+      YAML.load(response.body).each do |gem|
+        plugin_name = extract_plugin_name(gem["name"])
+        @remote_plugins << RemotePlugin.new(plugin_name, gem["name"], gem)
+      end
+
+      @remote_plugins
+    end
+
+    # @return [Hash{String => PluginManager::Plugin>]
+    # @see #_plugins
+    def plugins
+      _plugins(:place => :local)
+    end
+
+    # @return [Hash{String => PluginManager::RemotePlugin>]
+    # @see #_plugins
+    def remote_plugins
+      _plugins(:place => :remote)
     end
 
     # Require all enabled plugins, disabled plugins are skipped.
@@ -107,9 +238,34 @@ class Pry
     end
 
     private
+
     def gem_located?(gem_name)
       @plugins.any? { |plugin| plugin.gem_name == gem_name }
     end
+
+    # @example
+    #   extract_plugin_name("pry-the-plugin")
+    #   # => "the-plugin"
+    # @return [String] The name of the plugin without its prefix.
+    def extract_plugin_name(name)
+      name.split('-', 2).last
+    end
+
+    # @param [Hash] options The options hash.
+    # @option options [Symbol] :place (:local) The plugins to be returned.
+    # @return [Hash{String => PluginManager::<Plugin,RemotePlugin>}] A hash with
+    #   all plugin names (minus the 'pry-') as keys and Plugin or RemotePlugin
+    #   objects as values.
+    def _plugins(options = {})
+      place = options.fetch(:place, :local)
+
+      h = Hash.new { |_, key| NoPlugin.new(key) }
+      (place == :remote ? @remote_plugins : @plugins).each do |plugin|
+        h[plugin.name] = plugin
+      end
+      h
+    end
+
   end
 
 end
