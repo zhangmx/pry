@@ -51,7 +51,8 @@ class Pry
     attr_accessor :toplevel_binding
 
     # plugin forwardables
-    def_delegators :@plugin_manager, :plugins, :load_plugins, :locate_plugins
+    def_delegators :@plugin_manager, :plugins, :remote_plugins, :load_plugins,
+      :locate_plugins
 
     delegate_accessors :@config, :input, :output, :commands, :prompt, :print, :exception_handler,
       :hooks, :color, :pager, :editor, :memory_size, :input_stack, :extra_sticky_locals
