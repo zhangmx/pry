@@ -28,6 +28,7 @@ class Pry
 
       def initialize(name, gem_name, spec, enabled)
         @name, @gem_name, @enabled, @spec = name, gem_name, enabled, spec
+        self.active = false
       end
 
       # Disable a plugin. (prevents plugin from being loaded, cannot
