@@ -41,7 +41,7 @@ class Pry
           Usage: plugin
         BANNER
 
-        def sub_commands(cmd)
+        def subcommands(cmd)
           cmd.on :list do |opt|
             opt.on :r, "remote", "Show the list of all available plugins"
             opt.on :f, "force",  "Refresh cached list of remote plugins"
